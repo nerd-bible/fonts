@@ -1,6 +1,6 @@
 // Generate CSS @font-face blocks
-import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 // TODO: replace with klippa to eliminate a dependency
 import { parse } from "opentype.js";
 import { cssName, outDir, tmpPath } from "./config.ts";
@@ -27,7 +27,6 @@ async function getFace(path: string): Promise<CSSFace> {
 		if (!weightMax || n > weightMax) weightMax = n;
 	}
 	// range gathering
-	let unicodeRange = "";
 	const codepoints: number[] = [];
 	for (let i = 0; i < parsed.glyphs.length; i++) {
 		const g = parsed.glyphs.get(i);
@@ -37,30 +36,24 @@ async function getFace(path: string): Promise<CSSFace> {
 	// range finding
 	const fmtN = (n: number) => n.toString(16).padStart(4, "0").toUpperCase();
 	let start = codepoints[0];
-	const isPrintable = /[^\p{C}]$/u;
-	const delimeter = ", ";
+	const ranges: string[] = [];
+
 	for (let i = 1; i < codepoints.length; i++) {
 		const end = codepoints[i - 1];
-		if (
-			end + 1 !== codepoints[i] &&
-			isPrintable.test(String.fromCodePoint(end))
-		) {
-			unicodeRange +=
-				end === start ? `U${fmtN(start)}` : `U+${fmtN(start)}-${fmtN(end)}`;
-			unicodeRange += delimeter;
-			start = codepoints[i];
-		}
+		if (end + 1 === codepoints[i] && i !== codepoints.length - 1) continue;
+
+		ranges.push(
+			end === start ? `U${fmtN(start)}` : `U+${fmtN(start)}-${fmtN(end)}`,
+		);
+		start = codepoints[i];
 	}
 
 	return {
 		name: parsed.names.fontFamily["en"],
 		postscript: parsed.names.postScriptName["en"],
 		weight: `${weightMin} ${weightMax}`,
-		unicodeRange: unicodeRange.substring(
-			0,
-			unicodeRange.length - delimeter.length,
-		),
-		path: path.replace(tmpPath, ".").replace(/\.ttf$/, ".woff2"),
+		unicodeRange: ranges.join(", "),
+		path: path.replace(tmpPath, "fonts").replace(/\.ttf$/, ".woff2"),
 	};
 }
 
@@ -72,10 +65,10 @@ const fontFaces = await Promise.all(promises);
 const cssOutPath = join(outDir, cssName);
 const faceCss = (face: CSSFace) => `@font-face {
 	font-family: '${face.name}';
-	font-weight: ${face.weight};
 	font-display: swap;
 	src: url('${face.path}') format('woff2');
 	unicode-range: ${face.unicodeRange};
 }`;
+await mkdir(dirname(cssOutPath), { recursive: true });
 await writeFile(cssOutPath, fontFaces.map(faceCss).join("\n\n"));
 console.log("wrote", fontFaces.length, "faces to", cssOutPath);

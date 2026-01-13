@@ -9,7 +9,8 @@
 		"wawoff2": "^2.0.1"
 	},
 	"scripts": {
-		"build": "node ./src/index.ts"
+		"build": "node ./src/index.ts",
+		"clean": "rm -rf dist tmp"
 	},
 	"files": [
 		"dist"

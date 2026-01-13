@@ -19,18 +19,20 @@ const subsets = {
 		[0xfff0, 0xffff], // Specials Block
 	],
 	"latin-ext": [
-		[0x0080, 0x00ff], // Latin-1 Supplement
 		[0x0100, 0x017f], // Latin Extended-A
 		[0x0180, 0x024f], // Latin Extended-B
 		[0x1e00, 0x1eff], // Latin Extended Additional
-		[0x2100, 0x214f], // Letterlike Symbols
 		[0x2c60, 0x2c7f], // Latin Extended-C
 		[0xa720, 0xa7ff], // Latin Extended-D
 		[0xab30, 0xab6f], // Latin Extended-E
-		[0xfb00, 0xfb00], // Alphabetic Presentation Forms (latin)
-		[0xff01, 0xff5e], // Halfwidth and Fullwidth Forms (ascii)
 		[0x10780, 0x107bf], // Latin Extended-F
 		[0x1df00, 0x1dfff], // Latin Extended-G
+	],
+	"latin-suppl": [
+		[0x0080, 0x00ff], // Latin-1 Supplement
+		[0x2100, 0x214f], // Letterlike Symbols
+		[0xfb00, 0xfb00], // Alphabetic Presentation Forms (latin)
+		[0xff01, 0xff5e], // Halfwidth and Fullwidth Forms (ascii)
 	],
 	phonetic: [
 		[0x1d00, 0x1d7f], // Phonetic Extensions
@@ -68,8 +70,6 @@ const subsets = {
 	// ],
 	greek: [
 		[0x0370, 0x03ff], // Greek and Coptic
-	],
-	"greek-ext": [
 		[0x1f00, 0x1fff], // Greek extended
 	],
 	// vietnamese: [
@@ -89,12 +89,17 @@ async function writeSubsets(fname: string) {
 	const ttfBytes = await readFile(fname);
 	for (const [k, v] of Object.entries(subsets)) {
 		const unicodes = fmtUnicodes(v);
+		try {
 		const subset = subsetBytes(ttfBytes, { unicodes });
 		const outPath = fname.replace("base", join("base", k));
 		console.log(fname, "->", outPath);
 		await mkdir(dirname(outPath), { recursive: true });
 		await writeFile(outPath, subset);
 		n++;
+		} catch (err) {
+			console.error(err);
+			throw err;
+		}
 	}
 	await unlink(fname);
 }
